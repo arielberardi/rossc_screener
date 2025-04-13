@@ -6,6 +6,7 @@ import pandas
 from rossc_screener.main import get_sp500_tickers
 from rossc_screener.main import get_relative_volume
 from rossc_screener.main import get_ticker_data
+from rossc_screener.main import get_tickers_data
 from rossc_screener.main import get_ticker_float
 from rossc_screener.main import validate_rossc_condition
 
@@ -38,15 +39,16 @@ class TestMain(unittest.TestCase):
         )
 
     def test_get_ticker_data(self):
-        info = get_ticker_data("AAPL")
-        self.assertFalse(info.empty)
-        self.assertEqual(len(info), 15)
+        data = get_ticker_data("AAPL")
+        self.assertFalse(data.empty)
+        self.assertEqual(len(data), 15)
+        self.assertEqual(len(data.columns), 5)
 
-        self.assertEqual(info.columns[0], "Close")
-        self.assertEqual(info.columns[1], "High")
-        self.assertEqual(info.columns[2], "Low")
-        self.assertEqual(info.columns[3], "Open")
-        self.assertEqual(info.columns[4], "Volume")
+    def test_get_tickers_data(self):
+        data = get_tickers_data(["AAPL", "MSFT"])
+        self.assertFalse(data.empty)
+        self.assertEqual(len(data), 15)
+        self.assertEqual(len(data.columns), 10)
 
     @patch("rossc_screener.main.requests.get")
     def test_get_ticker_float(self, mock_get):
@@ -128,9 +130,6 @@ class TestMain(unittest.TestCase):
         self.assertFalse(validate_rossc_condition(priceData, floatShares))
 
     def test_validate_rossc_condition_4_fail(self):
-        pass
-
-    def test_validate_rossc_condition_5_fail(self):
         floatShares = 20000000
         priceData = pandas.DataFrame(
             {

@@ -32,11 +32,32 @@ def get_ticker_data(
         [ticker],
         start=start,
         end=end,
-        auto_adjust=True,
         interval=interval,
+        auto_adjust=True,
+        multi_level_index=False,
+        threads=True,
     )
 
-    return data.droplevel(1, axis=1)
+    return data
+
+
+def get_tickers_data(
+    tickers: list, days: int = 20, interval: str = "1d"
+) -> pandas.DataFrame:
+    start = datetime.now() - timedelta(days=days)
+    end = datetime.now()
+
+    data = yfinance.download(
+        tickers,
+        start=start,
+        end=end,
+        interval=interval,
+        auto_adjust=True,
+        multi_level_index=True,
+        threads=True,
+    )
+
+    return data
 
 
 def get_ticker_float(ticker: str) -> float:
@@ -75,11 +96,15 @@ def validate_rossc_condition(priceData: pandas.DataFrame, floatShares: float):
     return True
 
 
-def process_batch(tickers):
+def filter_tickers_with_rossc(tickers):
     result = []
+
+    tickersData = get_tickers_data(tickers)
+    index = pandas.IndexSlice
+
     for ticker in tickers:
         try:
-            priceData = get_ticker_data(ticker)
+            priceData = tickersData.loc[:, index[:, ticker]].droplevel(1, axis=1)
             floatShares = get_ticker_float(ticker)
 
             if validate_rossc_condition(priceData, floatShares) or 1:
@@ -105,19 +130,14 @@ def process_batch(tickers):
 def main():
     load_dotenv(dotenv_path=".env")
 
-    tickers = get_sp500_tickers()
-    filtered_tickers = []
-
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        batches = [tickers[i : i + 100] for i in range(0, len(tickers), 100)]
-        futures = [executor.submit(process_batch, batch) for batch in batches]
-        for future in as_completed(futures):
-            filtered_tickers.extend(future.result())
+    tickers = get_sp500_tickers().to_list()
+    filtered_tickers = filter_tickers_with_rossc(tickers)
 
     tickers_df = pandas.DataFrame(filtered_tickers)
-    tickers_df = tickers_df.sort_values(
-        by=["price_change", "volume_change"], ascending=[False, False]
+    tickers_df.sort_values(
+        by=["price_change", "volume_change"], ascending=[False, False], inplace=True
     )
+
     print(tickers_df)
 
 
